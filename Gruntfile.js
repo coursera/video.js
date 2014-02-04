@@ -203,6 +203,8 @@ module.exports = function(grunt) {
       '  define([], function() {',
       '    return vjs;',
       '  });',
+      '} else {',
+      ' window.vjs = window.videojs = vjs;',
       '}',
       '})(window);'
     ].join('\n');
