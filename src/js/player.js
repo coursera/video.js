@@ -250,7 +250,7 @@ vjs.Player.prototype.loadTech = function(techName, source){
   }
 
   // get rid of the HTML5 video tag as soon as we are using another tech
-  if (techName !== 'Html5' && this.tag) {
+  if (this.tag) {
     vjs.Html5.disposeMediaElement(this.tag);
     this.tag = null;
   }
