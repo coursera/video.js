@@ -18,6 +18,18 @@ vjs.MediaTechController = vjs.Component.extend({
     options.reportTouchActivity = false;
     vjs.Component.call(this, player, options, ready);
 
+    this.features = {
+      'volumeControl': true,
+
+      // Resizing plugins using request fullscreen reloads the plugin
+      'fullscreenResize': false,
+
+      // Optional events that we can manually mimic with timers
+      // currently not triggered by video-js-swf
+      'progressEvents': false,
+      'timeupdateEvents': false
+    };
+    
     this.initControlsListeners();
   }
 });
