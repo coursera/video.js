@@ -394,7 +394,7 @@ module.exports = function(grunt) {
       '    return vjs;',
       '  });',
       '} else {',
-      ' window.vjs = window.videojs = vjs;',
+      '  window.vjs = window.videojs = vjs;',
       '}',
       '})(window);'
     ].join('\n');
