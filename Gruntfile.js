@@ -220,20 +220,10 @@ module.exports = function(grunt) {
     }
 
     // Create a combined sources file. https://github.com/zencoder/video-js/issues/287
-    var combined = '(function(window) {\n';
+    var combined = '';
     sourceFiles.forEach(function(result){
       combined += grunt.file.read(result);
     });
-    combined += [
-      'if (typeof define === "function" && define.amd) {',
-      '  define([], function() {',
-      '    return vjs;',
-      '  });',
-      '} else {',
-      '  window.vjs = window.videojs = vjs;',
-      '}',
-      '})(window);'
-    ].join('\n');
     // Replace CDN version ref in js. Use major/minor version.
     combined = combined.replace(/GENERATED_CDN_VSN/g, version.majorMinor);
     grunt.file.write('build/files/combined.video.js', combined);
