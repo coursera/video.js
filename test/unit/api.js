@@ -51,7 +51,7 @@ test('should be able to access expected player API methods', function() {
 });
 
 test('should be able to access expected component API methods', function() {
-  var comp = videojs.Component.create({ id: function(){ return 1; } });
+  var comp = videojs.Component.create({ id: function(){ return 1; }, reportUserActivity: function(){} });
 
   // Component methods
   ok(comp.player, 'player exists');
@@ -81,6 +81,16 @@ test('should be able to access expected component API methods', function() {
   ok(comp.addClass, 'addClass exists');
   ok(comp.removeClass, 'removeClass exists');
   ok(comp.buildCSSClass, 'buildCSSClass exists');
+});
+
+test('should be able to access expected MediaTech API methods', function() {
+  var techProto = videojs.MediaTechController.prototype;
+  var html5Proto = videojs.Html5.prototype;
+  var flashProto = videojs.Flash.prototype;
+
+  ok(techProto.setPoster, 'setPoster should exist on the Media tech');
+  ok(html5Proto.setPoster, 'setPoster should exist on the HTML5 tech');
+  ok(flashProto.setPoster, 'setPoster should exist on the Flash tech');
 });
 
 test('should export ready api call to public', function() {
@@ -168,7 +178,8 @@ test('fullscreenToggle does not depend on minified player methods', function(){
   player = {
     id: noop,
     on: noop,
-    ready: noop
+    ready: noop,
+    reportUserActivity: noop
   };
 
   player['requestFullScreen'] = function(){

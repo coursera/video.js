@@ -60,7 +60,9 @@ vjs.Flash = vjs.MediaTechController.extend({
           'id': objId,
           'name': objId, // Both ID and Name needed or swf to identifty itself
           'class': 'vjs-tech'
-        }, options['attributes'])
+        }, options['attributes']),
+
+        lastSeekTarget
     ;
 
     // If source was supplied pass as a flash var.
@@ -74,6 +76,19 @@ vjs.Flash = vjs.MediaTechController.extend({
         flashVars['src'] = encodeURIComponent(vjs.getAbsoluteURL(source.src));
       }
     }
+
+    this['setCurrentTime'] = function(time){
+      lastSeekTarget = time;
+      this.el_.vjs_setProperty('currentTime', time);
+    };
+    this['currentTime'] = function(time){
+      // when seeking make the reported time keep up with the requested time
+      // by reading the time we're seeking to
+      if (this.seeking()) {
+        return lastSeekTarget;
+      }
+      return this.el_.vjs_getProperty('currentTime');
+    };
 
     // Add placeholder to player div
     vjs.insertFirst(placeHolder, parentEl);
@@ -243,12 +258,15 @@ vjs.Flash.prototype.pause = function(){
 };
 
 vjs.Flash.prototype.src = function(src){
+  if (src === undefined) {
+    return this.currentSrc();
+  }
+
   if (vjs.Flash.isStreamingSrc(src)) {
     src = vjs.Flash.streamToParts(src);
     this.setRtmpConnection(src.connection);
     this.setRtmpStream(src.stream);
-  }
-  else {
+  } else {
     // Make sure source URL is abosolute.
     src = vjs.getAbsoluteURL(src);
     this.el_.vjs_src(src);
@@ -302,9 +320,9 @@ vjs.Flash.prototype.enterFullScreen = function(){
 
 // Create setters and getters for attributes
 var api = vjs.Flash.prototype,
-    readWrite = 'rtmpConnection,rtmpStream,preload,currentTime,defaultPlaybackRate,playbackRate,autoplay,loop,mediaGroup,controller,controls,volume,muted,defaultMuted'.split(','),
-    readOnly = 'error,currentSrc,networkState,readyState,seeking,initialTime,duration,startOffsetTime,paused,played,seekable,ended,videoTracks,audioTracks,videoWidth,videoHeight,textTracks'.split(',');
-    // Overridden: buffered
+    readWrite = 'rtmpConnection,rtmpStream,preload,defaultPlaybackRate,playbackRate,autoplay,loop,mediaGroup,controller,controls,volume,muted,defaultMuted'.split(','),
+    readOnly = 'error,networkState,readyState,seeking,initialTime,duration,startOffsetTime,paused,played,seekable,ended,videoTracks,audioTracks,videoWidth,videoHeight,textTracks'.split(',');
+    // Overridden: buffered, currentTime, currentSrc
 
 /**
  * @this {*}

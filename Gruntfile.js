@@ -56,7 +56,7 @@ module.exports = function(grunt) {
         dest: 'build/files/minified.video.js'
       },
       tests: {
-        src: ['build/files/combined.video.js', 'build/compiler/goog.base.js', 'src/js/exports.js', 'test/unit/*.js', '!test/unit/api.js'],
+        src: ['build/files/combined.video.js', 'build/compiler/goog.base.js', 'src/js/exports.js', 'test/unit/*.js'],
         externs: ['src/js/player.externs.js', 'src/js/media/flash.externs.js', 'test/qunit-externs.js'],
         dest: 'build/files/test.minified.video.js'
       }
@@ -154,10 +154,32 @@ module.exports = function(grunt) {
           var path = require('path');
           return path.relative('dist', filepath);
         },
-        compression: 'DEFLATE',
+        // compression: 'DEFLATE',
         src: ['dist/video-js/**/*'],
         dest: 'dist/video-js-' + version.full + '.zip'
       }
+    },
+    usebanner: {
+      dist: {
+        options: {
+          position: 'top',
+          banner: '/*! Video.js v' + version.full + ' <%= pkg.copyright %> */ ',
+          linebreak: true
+        },
+        files: {
+          src: [ 'build/files/minified.video.js']
+        }
+      }
+    },
+    bump: {
+      files: ['package.json'],
+      updateConfigs: ['pkg']
+    },
+    tagrelease: {
+      file: 'package.json',
+      commit:  true,
+      message: 'Release %version%',
+      prefix:  'v'
     }
   });
 
@@ -173,15 +195,19 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('videojs-doc-generator');
   grunt.loadNpmTasks('grunt-zip');
+  grunt.loadNpmTasks('grunt-banner');
+  grunt.loadNpmTasks('grunt-bump');
+  grunt.loadNpmTasks('grunt-tagrelease');
+  grunt.loadNpmTasks('chg');
 
   // grunt.loadTasks('./docs/tasks/');
   // grunt.loadTasks('../videojs-doc-generator/tasks/');
 
   // Default task.
-  grunt.registerTask('default', ['jshint', 'less', 'build', 'minify', 'dist']);
+  grunt.registerTask('default', ['jshint', 'less', 'build', 'minify', 'usebanner', 'dist']);
   // Development watch task
   grunt.registerTask('dev', ['jshint', 'less', 'build', 'qunit:source']);
-  grunt.registerTask('test', ['jshint', 'less', 'build', 'minify', 'qunit']);
+  grunt.registerTask('test', ['jshint', 'less', 'build', 'minify', 'usebanner', 'qunit']);
 
   var fs = require('fs'),
       gzip = require('zlib').gzip;
@@ -258,7 +284,7 @@ module.exports = function(grunt) {
                 + ' --js_output_file=' + dest
                 + ' --create_source_map ' + dest + '.map --source_map_format=V3'
                 + ' --jscomp_warning=checkTypes --warning_level=VERBOSE'
-                + ' --output_wrapper "/*! Video.js v' + version.full + ' ' + pkg.copyright + ' */ (function() {%output%})();"';
+                + ' --output_wrapper "(function() {%output%})();"';
                 //@ sourceMappingURL=video.js.map
 
     // Add each js file
@@ -298,6 +324,8 @@ module.exports = function(grunt) {
     grunt.file.copy('node_modules/videojs-swf/dist/video-js.swf', 'dist/video-js/video-js.swf');
     grunt.file.copy('build/demo-files/demo.html', 'dist/video-js/demo.html');
     grunt.file.copy('build/demo-files/demo.captions.vtt', 'dist/video-js/demo.captions.vtt');
+    grunt.file.copy('src/css/video-js.less', 'dist/video-js/video-js.less');
+
 
     // Copy over font files
     grunt.file.recurse('build/files/font', function(absdir, rootdir, subdir, filename) {
@@ -306,6 +334,11 @@ module.exports = function(grunt) {
         grunt.file.copy(absdir, 'dist/video-js/font/' + filename);
       }
     });
+
+    // ds_store files sometime find their way in
+    if (grunt.file.exists('dist/video-js/.DS_Store')) {
+      grunt.file['delete']('dist/video-js/.DS_Store');
+    }
 
     // CDN version uses already hosted font files
     // Minified version only, doesn't need demo files
@@ -327,6 +360,99 @@ module.exports = function(grunt) {
     grunt.file.write('dist/cdn/video.js', jsmin + cdnjs);
   });
 
+  grunt.registerTask('cdn-links', 'Update the version of CDN links in docs', function(){
+    var doc = grunt.file.read('docs/guides/setup.md');
+    var version = pkg.version;
+
+    // remove the patch version to point to the latest patch
+    version = version.replace(/(\d\.\d)\.\d/, '$1');
+
+    // update the version in http://vjs.zencdn.net/4.3/video.js
+    doc = doc.replace(/(\/\/vjs\.zencdn\.net\/)\d\.\d(\.\d)?/g, '$1'+version);
+    grunt.file.write('docs/guides/setup.md', doc);
+  });
+
   grunt.registerTask('dist', 'Creating distribution', ['dist-copy', 'zip:dist']);
+
+  grunt.registerTask('next-issue', 'Get the next issue that needs a response', function(){
+    var done = this.async();
+    var GitHubApi = require('github');
+    var open = require('open');
+
+    var github = new GitHubApi({
+        // required
+        version: '3.0.0',
+        // optional
+        debug: true,
+        protocol: 'https',
+        // host: 'github.my-GHE-enabled-company.com',
+        // pathPrefix: '/api/v3', // for some GHEs
+        timeout: 5000
+    });
+
+    github.issues.repoIssues({
+        // optional:
+        // headers: {
+        //     'cookie': 'blahblah'
+        // },
+        user: 'videojs',
+        repo: 'video.js',
+        sort: 'updated',
+        direction: 'asc',
+        state: 'open',
+        per_page: 100
+    }, function(err, res) {
+      var issueToOpen;
+      var usersWithWrite = ['heff', 'mmcc'];
+      var categoryLabels = ['enhancement', 'bug', 'question', 'feature'];
+
+      console.log('Number of issues: '+res.length);
+
+      // TODO: Find the best way to exclude an issue where a question has been asked of the
+      // issue owner/submitter that hasn't been answerd yet.
+      // A stupid simple first step would be to check for the needs: more info label
+      // and exactly one comment (the question)
+
+      // find issues that need categorizing, no category labels
+      res.some(function(issue){
+        if (issue.labels.length === 0) {
+          return issueToOpen = issue; // break
+        }
+        // look for category labels
+        var categorized = issue.labels.some(function(label){
+          return categoryLabels.indexOf(label.name) >= 0;
+        });
+        if (!categorized) {
+          return issueToOpen = issue; // break
+        }
+      });
+      if (issueToOpen) {
+        open(issueToOpen.html_url);
+        return done();
+      }
+
+      // find issues that need confirming or answering
+      res.some(function(issue){
+        // look for confirmed label
+        var confirmed = issue.labels.some(function(label){
+          return label.name === 'confirmed';
+        });
+        // Was exluding questions, but that might leave a lot of people hanging
+        // var question = issue.labels.some(function(label){
+        //   return label.name === 'question';
+        // });
+        if (!confirmed) { //  && !question
+          return issueToOpen = issue; // break
+        }
+      });
+      if (issueToOpen) {
+        open(issueToOpen.html_url);
+        return done();
+      }
+
+      grunt.log.writeln('No next issue found');
+      done();
+    });
+  });
 
 };
