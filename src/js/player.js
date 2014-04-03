@@ -108,8 +108,6 @@ vjs.Player = vjs.Component.extend({
         this[key](val);
       }, this);
     }
-
-    this.listenForUserActivity();
   }
 });
 
@@ -293,6 +291,8 @@ vjs.Player.prototype.loadTech = function(techName, source){
   this.tech = new videojs[techName](this, techOptions);
 
   this.tech.ready(techReady);
+
+  this.listenForUserActivity();
 };
 
 vjs.Player.prototype.unloadTech = function(){
@@ -1338,7 +1338,7 @@ vjs.Player.prototype.listenForUserActivity = function(){
   // http://ejohn.org/blog/learning-from-twitter/
   activityCheck = setInterval(vjs.bind(this, function() {
     // Check to see if mouse/touch activity has happened
-    if (this.userActivity_) {
+    if (this.userActivity_ || inactivityTimeout === undefined) {
       // Reset the activity tracker
       this.userActivity_ = false;
 
